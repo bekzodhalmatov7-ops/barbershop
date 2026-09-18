@@ -17,10 +17,13 @@ function getActiveService(serviceId) {
   return row;
 }
 
-function getConfirmedBookings(dateStr, masterId) {
+/**
+ * Занятые слоты. И pending, и confirmed блокируют время.
+ */
+function getBusyBookings(dateStr, masterId) {
   const params = [dateStr];
   let sql = `SELECT start_time, end_time FROM bookings
-             WHERE booking_date = ? AND status = 'confirmed'`;
+             WHERE booking_date = ? AND status IN ('pending','confirmed')`;
   if (masterId != null && masterId !== '') {
     sql += ` AND master_id = ?`;
     params.push(masterId);
@@ -28,10 +31,6 @@ function getConfirmedBookings(dateStr, masterId) {
   return db.prepare(sql).all(...params);
 }
 
-/**
- * Расчёт доступных слотов.
- * Учитывает override-расписание мастера, если masterId задан.
- */
 function getAvailableSlots({ serviceId, date, masterId, now = new Date() }) {
   if (serviceId == null || serviceId === '') {
     const err = new Error('service_id is required');
@@ -57,8 +56,7 @@ function getAvailableSlots({ serviceId, date, masterId, now = new Date() }) {
   }
 
   const dayOfWeek = getDayOfWeek(date);
-  const masterIdNum =
-    masterId != null && masterId !== '' ? Number(masterId) : null;
+  const masterIdNum = masterId != null && masterId !== '' ? Number(masterId) : null;
 
   const wh = getWorkingHours(dayOfWeek, masterIdNum);
   if (wh.is_day_off) {
@@ -69,7 +67,7 @@ function getAvailableSlots({ serviceId, date, masterId, now = new Date() }) {
   const closeMin = toMinutes(wh.close_time);
   const duration = service.duration_minutes;
 
-  const bookings = getConfirmedBookings(date, masterIdNum).map((b) => ({
+  const bookings = getBusyBookings(date, masterIdNum).map((b) => ({
     start: toMinutes(b.start_time),
     end: toMinutes(b.end_time),
   }));
@@ -79,12 +77,9 @@ function getAvailableSlots({ serviceId, date, masterId, now = new Date() }) {
   const slots = [];
   for (let cur = openMin; cur + duration <= closeMin; cur += STEP_MINUTES) {
     const slotEnd = cur + duration;
-
     if (nowMin != null && cur <= nowMin) continue;
-
     const hasOverlap = bookings.some((b) => overlaps(cur, slotEnd, b.start, b.end));
     if (hasOverlap) continue;
-
     slots.push(toHHMM(cur));
   }
 

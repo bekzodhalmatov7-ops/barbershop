@@ -35,6 +35,7 @@
           <button class="tab" data-tab="services">Услуги</button>
           <button class="tab" data-tab="masters">Мастера</button>
           <button class="tab" data-tab="hours">Рабочие часы</button>
+          <button class="tab" data-tab="portfolio">Портфолио</button>
         </nav>
         <div class="user">
           <span class="muted" id="admin-login-label"></span>
@@ -61,6 +62,7 @@
             <span>Статус</span>
             <select id="filter-status">
               <option value="">Все</option>
+              <option value="pending">⏳ Ожидают</option>
               <option value="confirmed">Подтверждённые</option>
               <option value="cancelled">Отменённые</option>
             </select>
@@ -151,6 +153,33 @@
         </div>
         <div id="hours-list" class="hours-list">
           <p class="muted">Загрузка…</p>
+        </div>
+      </section>
+
+      <!-- ====== ПОРТФОЛИО ====== -->
+      <section class="panel hidden" id="panel-portfolio">
+        <div class="panel-head">
+          <h2>Портфолио</h2>
+          <button class="btn btn-primary btn-sm" id="new-portfolio-btn">+ Добавить работу</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table" id="portfolio-table">
+            <thead>
+              <tr>
+                <th>Фото</th>
+                <th>Название</th>
+                <th>Теги</th>
+                <th>Цена от</th>
+                <th>Порядок</th>
+                <th>Активна</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="portfolio-body">
+              <tr><td colspan="7" class="muted">Загрузка…</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
     </main>

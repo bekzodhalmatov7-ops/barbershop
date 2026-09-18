@@ -1,10 +1,13 @@
-const { sendToAdmins, sendToClient } = require('./telegramService');
+const {
+  sendToAdmins,
+  sendToClient,
+  sendToAdminGroup,
+  getAdminGroupId,
+} = require('./telegramService');
 
 function escapeHtml(s) {
   return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function buildBookingLines(b) {
@@ -33,20 +36,51 @@ function clientKeyboard(booking) {
     text: '❌ Отменить запись',
     callback_data: `cancel_client:${booking.id}`,
   }]];
-
-  // Дублирующая web-ссылка на всякий случай
   if (booking.cancel_url) {
     rows.push([{ text: '🌐 Открыть страницу записи', url: booking.cancel_url }]);
   }
-
   return { inline_keyboard: rows };
 }
 
+function groupConfirmKeyboard(bookingId) {
+  return {
+    inline_keyboard: [[
+      { text: '✅ Подтвердить', callback_data: `admin_confirm:${bookingId}` },
+      { text: '❌ Отклонить', callback_data: `admin_reject:${bookingId}` },
+    ]],
+  };
+}
+
+// ── Admins ──────────────────────────────────────────────
+
 async function notifyNewBooking(b) {
+  const groupId = getAdminGroupId();
+  const isPending = b.status === 'pending';
+
   const text = [
-    `<b>🆕 Новая запись #${escapeHtml(b.id)}</b>`,
+    isPending
+      ? `<b>🆕 Новая заявка #${escapeHtml(b.id)}</b>`
+      : `<b>🆕 Новая запись #${escapeHtml(b.id)}</b>`,
     ...buildBookingLines(b),
+    ...(isPending ? ['', '⏳ Ожидает подтверждения.'] : []),
   ].join('\n');
+
+  if (groupId && isPending) {
+    const res = await sendToAdminGroup(text, {
+      reply_markup: groupConfirmKeyboard(b.id),
+    });
+    if (res && res.ok && res.message_id) {
+      try {
+        require('../db')
+          .prepare(`UPDATE bookings SET tg_group_message_id = ? WHERE id = ?`)
+          .run(res.message_id, b.id);
+      } catch (e) {
+        console.error('[notify] save group message_id failed:', e.message);
+      }
+    }
+    return res;
+  }
+
   return sendToAdmins(text, { reply_markup: adminKeyboard() });
 }
 
@@ -55,6 +89,8 @@ async function notifyBookingCancelled(b) {
     `<b>❌ Отменена запись #${escapeHtml(b.id)}</b>`,
     ...buildBookingLines(b),
   ].join('\n');
+  const groupId = getAdminGroupId();
+  if (groupId) return sendToAdminGroup(text);
   return sendToAdmins(text, { reply_markup: adminKeyboard() });
 }
 
@@ -70,18 +106,25 @@ async function notifyBookingRescheduled(b, prev) {
   ]
     .filter(Boolean)
     .join('\n');
+  const groupId = getAdminGroupId();
+  if (groupId) return sendToAdminGroup(text);
   return sendToAdmins(text, { reply_markup: adminKeyboard() });
 }
 
+// ── Client ──────────────────────────────────────────────
+
 async function notifyClientWelcome(b) {
   if (!b.client_telegram_chat_id) return { skipped: true };
+  const statusLine =
+    b.status === 'pending'
+      ? '⏳ Ваша заявка отправлена на подтверждение администратору. Мы сообщим, как только её рассмотрят.'
+      : '✅ Ваша запись подтверждена.';
+
   const text = [
-    `<b>✅ Вы подписаны на уведомления</b>`,
-    ``,
-    `Ваша запись #${escapeHtml(b.id)}:`,
+    `<b>Ваша заявка #${escapeHtml(b.id)}</b>`,
     ...buildBookingLines(b),
-    ``,
-    `Мы пришлём сюда сообщение, если что-то изменится.`,
+    '',
+    statusLine,
   ].join('\n');
   return sendToClient(b.client_telegram_chat_id, text, {
     reply_markup: clientKeyboard(b),
@@ -113,6 +156,30 @@ async function notifyClientRescheduled(b, prev) {
   });
 }
 
+async function notifyClientConfirmed(b) {
+  if (!b.client_telegram_chat_id) return { skipped: true };
+  const text = [
+    `<b>✅ Запись #${escapeHtml(b.id)} подтверждена</b>`,
+    ...buildBookingLines(b),
+    '',
+    'Ждём вас!',
+  ].join('\n');
+  return sendToClient(b.client_telegram_chat_id, text, {
+    reply_markup: clientKeyboard(b),
+  });
+}
+
+async function notifyClientRejected(b) {
+  if (!b.client_telegram_chat_id) return { skipped: true };
+  const text = [
+    `<b>❌ Заявка #${escapeHtml(b.id)} отклонена</b>`,
+    ...buildBookingLines(b),
+    '',
+    'К сожалению, это время недоступно. Попробуйте выбрать другое: /book',
+  ].join('\n');
+  return sendToClient(b.client_telegram_chat_id, text);
+}
+
 module.exports = {
   notifyNewBooking,
   notifyBookingCancelled,
@@ -120,4 +187,8 @@ module.exports = {
   notifyClientWelcome,
   notifyClientCancelled,
   notifyClientRescheduled,
+  notifyClientConfirmed,
+  notifyClientRejected,
+  buildBookingLines,
+  groupConfirmKeyboard,
 };

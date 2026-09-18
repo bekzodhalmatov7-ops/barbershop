@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const ADMIN_CHAT_IDS = (process.env.TELEGRAM_ADMIN_CHAT_IDS || '')
   .split(',').map((s) => s.trim()).filter(Boolean);
+const ADMIN_GROUP_ID = process.env.TELEGRAM_ADMIN_GROUP_ID || '';
 
 const ENABLED = process.env.TELEGRAM_ENABLED !== 'false' && TOKEN.length > 0;
 const ADMIN_NOTIFY = ENABLED && ADMIN_CHAT_IDS.length > 0;
@@ -125,6 +126,33 @@ async function sendToClient(chatId, text, options = {}) {
   return sendToChat(chatId, text, options);
 }
 
+/**
+ * Отправка в группу админов (если задана).
+ */
+async function sendToAdminGroup(text, options = {}) {
+  if (!ENABLED || !ADMIN_GROUP_ID) return { skipped: true, reason: 'no_group' };
+  return sendToChat(ADMIN_GROUP_ID, text, options);
+}
+
+/**
+ * Проверка, является ли пользователь админом группы.
+ * true для creator / administrator.
+ */
+async function isGroupAdmin(userId) {
+  if (!TOKEN || !ADMIN_GROUP_ID) return false;
+  const res = await callApi('getChatMember', {
+    chat_id: ADMIN_GROUP_ID,
+    user_id: userId,
+  });
+  if (!res.ok) return false;
+  const status = res.result && res.result.status;
+  return status === 'creator' || status === 'administrator';
+}
+
+function getAdminGroupId() {
+  return ADMIN_GROUP_ID;
+}
+
 async function answerCallbackQuery(callbackQueryId, text) {
   return callApi('answerCallbackQuery', {
     callback_query_id: callbackQueryId,
@@ -152,6 +180,7 @@ function getStats() {
   return {
     enabled: ENABLED,
     adminsCount: ADMIN_CHAT_IDS.length,
+    adminGroupId: ADMIN_GROUP_ID || null,
     clientNotify: CLIENT_NOTIFY,
     rateLimitPerMin: RATE_LIMIT_PER_MIN,
     dedupWindowMs: DEDUP_WINDOW_MS,
@@ -166,6 +195,9 @@ module.exports = {
   editMessageReplyMarkup,
   sendToAdmins,
   sendToClient,
+  sendToAdminGroup,
+  isGroupAdmin,
+  getAdminGroupId,
   answerCallbackQuery,
   setWebhook,
   deleteWebhook,

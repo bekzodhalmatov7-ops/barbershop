@@ -28,10 +28,13 @@ function ensureActiveMaster(masterId) {
   }
 }
 
-function getConfirmedBookings(dateStr, masterId) {
+/**
+ * Занятые слоты (pending + confirmed).
+ */
+function getBusyBookings(dateStr, masterId) {
   const params = [dateStr];
   let sql = `SELECT id, start_time, end_time FROM bookings
-             WHERE booking_date = ? AND status = 'confirmed'`;
+             WHERE booking_date = ? AND status IN ('pending','confirmed')`;
   if (masterId != null) {
     sql += ` AND master_id = ?`;
     params.push(masterId);
@@ -40,7 +43,7 @@ function getConfirmedBookings(dateStr, masterId) {
 }
 
 function isSlotFree(dateStr, masterId, startMin, endMin) {
-  const rows = getConfirmedBookings(dateStr, masterId);
+  const rows = getBusyBookings(dateStr, masterId);
   return !rows.some((b) =>
     overlaps(startMin, endMin, toMinutes(b.start_time), toMinutes(b.end_time))
   );
@@ -54,6 +57,7 @@ function getBookingWithNames(id) {
          b.booking_date AS date, b.start_time, b.end_time,
          b.status, b.comment,
          b.client_telegram_chat_id, b.client_link_token,
+         b.tg_group_message_id,
          s.name AS service_name, s.price AS service_price,
          m.name AS master_name
        FROM bookings b
@@ -86,6 +90,15 @@ function buildCancelUrl(id, token) {
   return `${base}/booking/?id=${id}&token=${token}`;
 }
 
+/**
+ * Требуется ли подтверждение админом.
+ */
+function requiresConfirmation() {
+  const groupId = process.env.TELEGRAM_ADMIN_GROUP_ID;
+  const enabled = process.env.TELEGRAM_REQUIRE_CONFIRMATION !== 'false';
+  return Boolean(groupId) && enabled;
+}
+
 function createBooking(payload, opts = {}) {
   const now = opts.now || new Date();
   const source = opts.source || 'public';
@@ -110,7 +123,6 @@ function createBooking(payload, opts = {}) {
     const err = new Error('Date is in the past'); err.status = 400; throw err;
   }
 
-  // Учёт override-расписания мастера
   const wh = getWorkingHours(getDayOfWeek(date), master_id);
   if (wh.is_day_off) {
     const err = new Error('Selected day is a day off'); err.status = 400; throw err;
@@ -130,11 +142,18 @@ function createBooking(payload, opts = {}) {
     const err = new Error('Selected time is in the past'); err.status = 400; throw err;
   }
 
+  // Админ создаёт — сразу confirmed.
+  // Клиент — pending, если включено подтверждение и задана группа.
+  const newStatus =
+    source === 'admin'
+      ? 'confirmed'
+      : (requiresConfirmation() ? 'pending' : 'confirmed');
+
   const insert = db.prepare(
     `INSERT INTO bookings
        (service_id, master_id, client_name, client_phone, client_email,
         booking_date, start_time, end_time, status, comment)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
   const tx = db.transaction(() => {
@@ -145,7 +164,7 @@ function createBooking(payload, opts = {}) {
     }
     const result = insert.run(
       service_id, master_id, client_name, client_phone, client_email,
-      date, toHHMM(startMin), toHHMM(endMin), comment
+      date, toHHMM(startMin), toHHMM(endMin), newStatus, comment
     );
     return result.lastInsertRowid;
   });
@@ -158,6 +177,7 @@ function createBooking(payload, opts = {}) {
     botUsername && token ? `https://t.me/${botUsername}?start=${token}` : null;
   const cancelUrl = buildCancelUrl(id, token);
 
+  // Уведомления админам (в группу или в личку) — только для клиентских броней
   if (source !== 'admin') {
     const full = getBookingWithNames(id);
     if (full) {
@@ -169,7 +189,7 @@ function createBooking(payload, opts = {}) {
 
   return {
     id: String(id),
-    status: 'confirmed',
+    status: newStatus,
     date,
     start_time: toHHMM(startMin),
     end_time: toHHMM(endMin),
@@ -233,4 +253,5 @@ module.exports = {
   cancelBookingByToken,
   toPublicBooking,
   buildCancelUrl,
+  requiresConfirmation,
 };

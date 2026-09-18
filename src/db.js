@@ -50,8 +50,8 @@ function initSchema() {
       booking_date  DATE NOT NULL,
       start_time    TIME NOT NULL,
       end_time      TIME NOT NULL,
-      status        TEXT NOT NULL DEFAULT 'confirmed'
-                    CHECK (status IN ('confirmed','cancelled')),
+      status        TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending','confirmed','cancelled')),
       comment       TEXT,
       created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (service_id) REFERENCES services(id),
@@ -89,7 +89,6 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_mwh_master
       ON master_working_hours(master_id);
 
-    -- Каталог стрижек и стилей
     CREATE TABLE IF NOT EXISTS portfolio (
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
       title        VARCHAR(120) NOT NULL,
@@ -110,6 +109,9 @@ function initSchema() {
 
   ensureColumn('bookings', 'client_link_token', 'TEXT');
   ensureColumn('bookings', 'client_telegram_chat_id', 'TEXT');
+  ensureColumn('bookings', 'tg_group_message_id', 'INTEGER');
+
+  migrateBookingsStatusEnum();
 
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_bookings_link_token
@@ -119,6 +121,67 @@ function initSchema() {
 
   seedDefaults();
   require('./utils/seedAdmin').seedDefaultAdmin();
+}
+
+/**
+ * Если таблица bookings создавалась без 'pending' в CHECK —
+ * пересоздаём её с новым ограничением, сохраняя данные.
+ */
+function migrateBookingsStatusEnum() {
+  const row = db
+    .prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='bookings'`)
+    .get();
+  if (!row || !row.sql) return;
+  if (row.sql.includes("'pending'")) return;
+
+  console.log('🔄 Миграция bookings: добавляю статус "pending"...');
+
+  db.exec(`
+    PRAGMA foreign_keys = OFF;
+
+    CREATE TABLE bookings_new (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      service_id    INTEGER NOT NULL,
+      master_id     INTEGER,
+      client_name   VARCHAR(100) NOT NULL,
+      client_phone  VARCHAR(20)  NOT NULL,
+      client_email  VARCHAR(100),
+      booking_date  DATE NOT NULL,
+      start_time    TIME NOT NULL,
+      end_time      TIME NOT NULL,
+      status        TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending','confirmed','cancelled')),
+      comment       TEXT,
+      created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      client_link_token TEXT,
+      client_telegram_chat_id TEXT,
+      tg_group_message_id INTEGER,
+      FOREIGN KEY (service_id) REFERENCES services(id),
+      FOREIGN KEY (master_id)  REFERENCES masters(id)
+    );
+
+    INSERT INTO bookings_new
+      (id, service_id, master_id, client_name, client_phone, client_email,
+       booking_date, start_time, end_time, status, comment, created_at,
+       client_link_token, client_telegram_chat_id)
+    SELECT
+      id, service_id, master_id, client_name, client_phone, client_email,
+      booking_date, start_time, end_time, status, comment, created_at,
+      client_link_token, client_telegram_chat_id
+    FROM bookings;
+
+    DROP TABLE bookings;
+    ALTER TABLE bookings_new RENAME TO bookings;
+
+    CREATE INDEX IF NOT EXISTS idx_bookings_date_master
+      ON bookings(booking_date, master_id);
+    CREATE INDEX IF NOT EXISTS idx_bookings_phone
+      ON bookings(client_phone);
+
+    PRAGMA foreign_keys = ON;
+  `);
+
+  console.log('✅ Таблица bookings мигрирована');
 }
 
 function seedDefaults() {
@@ -159,73 +222,17 @@ function seedDefaults() {
     );
     const seed = db.transaction(() => {
       const items = [
-        {
-          title: 'Классический фейд',
-          description: 'Плавный переход от коротких висков к длинной верхней части. Универсальный вариант для делового и повседневного стиля.',
-          image: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=800&q=80',
-          tags: 'фейд,классика,короткие',
-          price: 180,
-        },
-        {
-          title: 'Crop / Текстурная стрижка',
-          description: 'Короткие бока и текстурная верхняя часть. Смотрится стильно с укладкой помадой или глиной.',
-          image: 'https://images.unsplash.com/photo-1503443207922-dff7d543fd0e?w=800&q=80',
-          tags: 'crop,текстура,молодёжные',
-          price: 200,
-        },
-        {
-          title: 'Помпадур',
-          description: 'Классика 50-х с объёмной передней частью. Требует ежедневной укладки, но выглядит безупречно.',
-          image: 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=800&q=80',
-          tags: 'помпадур,классика,ретро',
-          price: 220,
-        },
-        {
-          title: 'Buzz Cut',
-          description: 'Максимально короткая стрижка машинкой. Минимум ухода, максимум практичности.',
-          image: 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=800&q=80',
-          tags: 'короткие,машинка,спорт',
-          price: 100,
-        },
-        {
-          title: 'Андеркат',
-          description: 'Контрастная стрижка: выбритые виски и длинная верхняя часть. Отлично сочетается с бородой.',
-          image: 'https://images.unsplash.com/photo-1583195764036-6dc248ac07d9?w=800&q=80',
-          tags: 'андеркат,контраст,борода',
-          price: 200,
-        },
-        {
-          title: 'Оформление бороды',
-          description: 'Моделирование формы, работа с контурами и уход. Идеально дополняет любую стрижку.',
-          image: 'https://images.unsplash.com/photo-1622286346003-c5c7e63b1088?w=800&q=80',
-          tags: 'борода,уход,контуры',
-          price: 120,
-        },
-        {
-          title: 'Side Part',
-          description: 'Аккуратный боковой пробор — строгий деловой стиль. Смотрится элегантно в любой ситуации.',
-          image: 'https://images.unsplash.com/photo-1614283233556-f35b0c801ef1?w=800&q=80',
-          tags: 'side part,деловой,классика',
-          price: 180,
-        },
-        {
-          title: 'Мужские короткие с выбритым пробором',
-          description: 'Современная интерпретация классики с чётким выбритым пробором.',
-          image: 'https://images.unsplash.com/photo-1593702288056-f5348f5e0f0f?w=800&q=80',
-          tags: 'пробор,короткие,современные',
-          price: 200,
-        },
+        { title: 'Классический фейд', description: 'Плавный переход от коротких висков к длинной верхней части.', image: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=800&q=80', tags: 'фейд,классика,короткие', price: 180 },
+        { title: 'Crop / Текстурная стрижка', description: 'Короткие бока и текстурная верхняя часть.', image: 'https://images.unsplash.com/photo-1503443207922-dff7d543fd0e?w=800&q=80', tags: 'crop,текстура,молодёжные', price: 200 },
+        { title: 'Помпадур', description: 'Классика 50-х с объёмной передней частью.', image: 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=800&q=80', tags: 'помпадур,классика,ретро', price: 220 },
+        { title: 'Buzz Cut', description: 'Максимально короткая стрижка машинкой.', image: 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=800&q=80', tags: 'короткие,машинка,спорт', price: 100 },
+        { title: 'Андеркат', description: 'Контрастная стрижка: выбритые виски и длинная верхняя часть.', image: 'https://images.unsplash.com/photo-1583195764036-6dc248ac07d9?w=800&q=80', tags: 'андеркат,контраст,борода', price: 200 },
+        { title: 'Оформление бороды', description: 'Моделирование формы, работа с контурами и уход.', image: 'https://images.unsplash.com/photo-1622286346003-c5c7e63b1088?w=800&q=80', tags: 'борода,уход,контуры', price: 120 },
+        { title: 'Side Part', description: 'Аккуратный боковой пробор — строгий деловой стиль.', image: 'https://images.unsplash.com/photo-1614283233556-f35b0c801ef1?w=800&q=80', tags: 'side part,деловой,классика', price: 180 },
+        { title: 'Короткие с выбритым пробором', description: 'Современная интерпретация классики.', image: 'https://images.unsplash.com/photo-1593702288056-f5348f5e0f0f?w=800&q=80', tags: 'пробор,короткие,современные', price: 200 },
       ];
       items.forEach((it, i) => {
-        insertPf.run(
-          it.title,
-          it.description,
-          it.image,
-          null,
-          it.tags,
-          it.price,
-          i
-        );
+        insertPf.run(it.title, it.description, it.image, null, it.tags, it.price, i);
       });
     });
     seed();

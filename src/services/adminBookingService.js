@@ -7,6 +7,8 @@ const {
   notifyBookingRescheduled,
   notifyClientCancelled,
   notifyClientRescheduled,
+  notifyClientConfirmed,
+  notifyClientRejected,
 } = require('./notificationService');
 
 function listBookings({ date, status, phone } = {}) {
@@ -63,6 +65,20 @@ function getBookingById(id) {
   );
 }
 
+/**
+ * Занятые слоты (pending + confirmed), исключая саму запись.
+ */
+function getBusyBookingsForDate(dateStr, masterId, excludeId) {
+  const params = [dateStr, excludeId];
+  let sql = `SELECT id, start_time, end_time FROM bookings
+             WHERE booking_date = ? AND status IN ('pending','confirmed') AND id != ?`;
+  if (masterId != null) {
+    sql += ` AND master_id = ?`;
+    params.push(masterId);
+  }
+  return db.prepare(sql).all(...params);
+}
+
 function patchBooking(id, patch) {
   const before = getBookingById(id);
 
@@ -88,7 +104,8 @@ function patchBooking(id, patch) {
       throw err;
     }
 
-    if (nextStatus === 'confirmed') {
+    // Проверяем рабочие часы/пересечения только если запись не отменена
+    if (nextStatus === 'confirmed' || nextStatus === 'pending') {
       const reqDay = parseDate(nextDate);
       const t = new Date();
       const todayMidnight = new Date(t.getFullYear(), t.getMonth(), t.getDate());
@@ -98,7 +115,6 @@ function patchBooking(id, patch) {
         throw err;
       }
 
-      // Учёт override-расписания мастера
       const wh = getWorkingHours(getDayOfWeek(nextDate), nextMaster);
       if (wh.is_day_off) {
         const err = new Error('Selected day is a day off');
@@ -117,14 +133,7 @@ function patchBooking(id, patch) {
         throw err;
       }
 
-      const params = [nextDate, id];
-      let sql = `SELECT id, start_time, end_time FROM bookings
-                 WHERE booking_date = ? AND status = 'confirmed' AND id != ?`;
-      if (nextMaster != null) {
-        sql += ` AND master_id = ?`;
-        params.push(nextMaster);
-      }
-      const others = db.prepare(sql).all(...params);
+      const others = getBusyBookingsForDate(nextDate, nextMaster, id);
       const clash = others.some((b) =>
         overlaps(startMin, endMin, toMinutes(b.start_time), toMinutes(b.end_time))
       );
@@ -158,20 +167,26 @@ function patchBooking(id, patch) {
   const updated = tx.immediate();
 
   if (before) {
-    const becameCancelled = before.status === 'confirmed' && updated.status === 'cancelled';
-    const becameConfirmed = before.status === 'cancelled' && updated.status === 'confirmed';
+    const becameCancelled = before.status !== 'cancelled' && updated.status === 'cancelled';
+    const becameConfirmedFromPending = before.status === 'pending' && updated.status === 'confirmed';
     const dateChanged = before.booking_date !== updated.booking_date;
     const timeChanged = before.start_time !== updated.start_time;
 
     const full = bookingService.getBookingWithNames(id);
 
     if (full && becameCancelled) {
+      if (before.status === 'pending') {
+        notifyClientRejected(full).catch((e) =>
+          console.error('[notify] client reject failed:', e.message));
+      } else {
+        notifyClientCancelled(full).catch((e) =>
+          console.error('[notify] client cancel failed:', e.message));
+      }
       notifyBookingCancelled(full).catch((e) =>
-        console.error('[notify] admin cancel failed:', e.message)
-      );
-      notifyClientCancelled(full).catch((e) =>
-        console.error('[notify] client cancel failed:', e.message)
-      );
+        console.error('[notify] admin cancel failed:', e.message));
+    } else if (full && becameConfirmedFromPending) {
+      notifyClientConfirmed(full).catch((e) =>
+        console.error('[notify] client confirm failed:', e.message));
     } else if (full && (dateChanged || timeChanged) && updated.status === 'confirmed') {
       notifyBookingRescheduled(full, {
         date: before.booking_date,
@@ -182,11 +197,6 @@ function patchBooking(id, patch) {
         date: before.booking_date,
         start_time: before.start_time,
       }).catch((e) => console.error('[notify] client reschedule failed:', e.message));
-    } else if (full && becameConfirmed) {
-      notifyClientRescheduled(full, {
-        date: before.booking_date,
-        start_time: before.start_time,
-      }).catch(() => {});
     }
   }
 

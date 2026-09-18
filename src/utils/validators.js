@@ -43,13 +43,13 @@ const createBookingSchema = z.object({
 
 const listBookingsQuerySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  status: z.enum(['confirmed', 'cancelled']).optional(),
+  status: z.enum(['pending', 'confirmed', 'cancelled']).optional(),
   phone: z.string().trim().min(1).max(20).optional(),
 });
 
 const patchBookingSchema = z
   .object({
-    status: z.enum(['confirmed', 'cancelled']).optional(),
+    status: z.enum(['pending', 'confirmed', 'cancelled']).optional(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     start_time: timeSchema.optional(),
     master_id: z
