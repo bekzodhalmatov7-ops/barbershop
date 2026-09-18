@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0a0b" />
+  <title>Барбершоп — онлайн-запись</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <!-- ══ Шапка ══ -->
+  <header class="site-header" id="site-header">
+    <div class="container">
+      <a href="/" class="brand">
+        <span class="brand-mark">✂</span> BARBERSHOP
+      </a>
+      <nav class="site-nav">
+        <a href="#portfolio">Работы</a>
+        <a href="#booking">Записаться</a>
+        <a href="#features">О нас</a>
+        <a href="/admin/" class="nav-cta">Админка</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ══ Hero с видео ══ -->
+  <section class="hero">
+    <video
+      class="hero-video"
+      autoplay
+      muted
+      loop
+      playsinline
+      preload="auto"
+      poster="/img/hero-poster.jpg"
+    >
+      <source src="/video/hero.mp4" type="video/mp4" />
+      <source src="/video/hero.webm" type="video/webm" />
+    </video>
+    <div class="hero-overlay"></div>
+
+    <div class="hero-content">
+      <span class="hero-eyebrow">Онлайн-запись</span>
+      <h1>Твой стиль.<br>Твоя <span class="accent">борода</span>.<br>Твой барбер.</h1>
+      <p>
+        Запишись за 30 секунд без звонков и ожиданий.
+        Опытные мастера, премиальные материалы, удобное время.
+      </p>
+      <div class="hero-actions">
+        <a href="#booking" class="btn btn-primary btn-lg">Записаться →</a>
+        <a href="#portfolio" class="btn btn-secondary btn-lg">Посмотреть работы</a>
+      </div>
+    </div>
+
+    <div class="hero-scroll">Листай вниз</div>
+  </section>
+
+  <!-- ══ Преимущества ══ -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="features-grid">
+        <div class="feature">
+          <div class="feature-icon">⏱</div>
+          <h3>Запись за 30 сек</h3>
+          <p>Выбери услугу, дату и время — и всё. Подтверждение приходит мгновенно.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">💈</div>
+          <h3>Опытные барберы</h3>
+          <p>Команда мастеров с многолетним стажем. Классика и современные стрижки.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">✈️</div>
+          <h3>Telegram-бот</h3>
+          <p>Записывайся прямо в Telegram. Уведомления, перенос и отмена — в один клик.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ Наши работы (портфолио) ══ -->
+  <section class="portfolio-section" id="portfolio">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">Наши работы</h2>
+          <p class="section-subtitle">Выберите стиль, который вам нравится — и запишитесь.</p>
+        </div>
+        <div class="tags-filter" id="portfolio-tags"></div>
+      </div>
+
+      <div class="portfolio-grid" id="portfolio-grid">
+        <p class="muted">Загрузка…</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ Блок записи ══ -->
+  <main class="container booking-section" id="booking">
+    <h2 class="section-title">Онлайн-запись</h2>
+    <p class="section-subtitle">Выберите услугу, дату и время — три быстрых шага.</p>
+
+    <nav class="steps" id="steps">
+      <div class="step" data-step="1"><span>1</span> Услуга</div>
+      <div class="step" data-step="2"><span>2</span> Дата и время</div>
+      <div class="step" data-step="3"><span>3</span> Контакты</div>
+      <div class="step" data-step="4"><span>4</span> Готово</div>
+    </nav>
+
+    <!-- Экран 1: Услуги -->
+    <section class="screen" id="screen-1">
+      <h2>Выберите услугу</h2>
+      <div class="services" id="services-list">
+        <p class="loading">Загрузка…</p>
+      </div>
+    </section>
+
+    <!-- Экран 2: Дата и время -->
+    <section class="screen hidden" id="screen-2">
+      <h2>Выберите дату и время</h2>
+      <div class="selected-info" id="selected-service-info"></div>
+
+      <label class="field">
+        <span>Дата</span>
+        <input type="date" id="date-input" />
+      </label>
+
+      <h3 class="slots-title">Свободное время</h3>
+      <div class="slots" id="slots-list">
+        <p class="muted">Выберите дату, чтобы увидеть свободные слоты.</p>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-secondary" id="back-to-1">← Назад</button>
+      </div>
+    </section>
+
+    <!-- Экран 3: Контакты -->
+    <section class="screen hidden" id="screen-3">
+      <h2>Ваши данные</h2>
+      <div class="selected-info" id="selected-booking-info"></div>
+
+      <form id="booking-form" class="form">
+        <label class="field">
+          <span>Имя *</span>
+          <input type="text" name="client_name" required maxlength="100" placeholder="Иван Иванов" />
+        </label>
+
+        <label class="field">
+          <span>Телефон *</span>
+          <input type="tel" name="client_phone" required maxlength="20" placeholder="+998 90 123 45 67" />
+        </label>
+
+        <label class="field">
+          <span>Email (необязательно)</span>
+          <input type="email" name="client_email" maxlength="100" placeholder="you@example.com" />
+        </label>
+
+        <label class="field">
+          <span>Комментарий (необязательно)</span>
+          <textarea name="comment" rows="3" maxlength="1000" placeholder="Пожелания к стрижке…"></textarea>
+        </label>
+
+        <div class="form-error hidden" id="form-error"></div>
+
+        <div class="actions">
+          <button type="button" class="btn btn-secondary" id="back-to-2">← Назад</button>
+          <button type="submit" class="btn btn-primary" id="submit-btn">Записаться</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Экран 4: Подтверждение -->
+    <section class="screen hidden" id="screen-4">
+      <div class="success">
+        <div class="success-icon">✓</div>
+        <h2>Вы записаны!</h2>
+        <div class="confirmation" id="confirmation-info"></div>
+
+        <div class="telegram-subscribe hidden" id="telegram-subscribe">
+          <p class="muted">
+            Хотите получать уведомления об изменениях в Telegram?
+            Нажмите кнопку — бот пришлёт подтверждение и позволит отменить
+            запись в один клик.
+          </p>
+          <a
+            class="btn telegram-btn"
+            id="telegram-subscribe-link"
+            href="#"
+            target="_blank"
+            rel="noopener"
+          >✈️ Подписаться в Telegram</a>
+        </div>
+
+        <div class="cancel-link-block hidden" id="cancel-link-block">
+          <p class="muted">
+            Сохраните ссылку — по ней можно посмотреть запись или отменить её:
+          </p>
+          <div class="cancel-link-row">
+            <input type="text" id="cancel-link-input" readonly class="cancel-link-input" />
+            <button type="button" class="btn btn-secondary" id="copy-cancel-link">Копировать</button>
+          </div>
+        </div>
+
+        <div class="actions right">
+          <button class="btn btn-secondary" id="start-over">Записаться ещё раз</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ══ Модалка портфолио ══ -->
+  <div class="portfolio-modal-backdrop hidden" id="portfolio-modal">
+    <div class="portfolio-modal">
+      <button class="portfolio-modal-close" id="portfolio-modal-close" aria-label="Закрыть">×</button>
+      <div class="portfolio-modal-image">
+        <img id="portfolio-modal-img" src="" alt="" />
+      </div>
+      <div class="portfolio-modal-body">
+        <h3 id="portfolio-modal-title"></h3>
+        <div class="portfolio-modal-tags" id="portfolio-modal-tags"></div>
+        <p id="portfolio-modal-desc"></p>
+        <div class="portfolio-modal-price hidden" id="portfolio-modal-price"></div>
+        <div class="portfolio-modal-actions">
+          <button class="btn btn-secondary" id="portfolio-modal-cancel">Закрыть</button>
+          <button class="btn btn-primary" id="portfolio-modal-book">Записаться на такую →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Подвал ══ -->
+  <footer class="footer">
+    <div class="container">
+      <p class="muted">© Барбершоп · онлайн-запись</p>
+    </div>
+  </footer>
+
+  <script src="/app.js"></script>
+  <script>
+    // Затемнение шапки при скролле
+    (function () {
+      const header = document.getElementById('site-header');
+      const onScroll = () => {
+        header.classList.toggle('scrolled', window.scrollY > 40);
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    })();
+  </script>
+</body>
+</html>

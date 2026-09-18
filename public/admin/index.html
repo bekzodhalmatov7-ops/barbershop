@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Админка — Барбершоп</title>
+  <link rel="stylesheet" href="/admin/admin.css" />
+</head>
+<body>
+  <!-- Экран логина -->
+  <section class="login-screen" id="login-screen">
+    <form class="login-box" id="login-form">
+      <h1>✂️ Админка</h1>
+      <p class="muted">Вход для администратора</p>
+      <label class="field">
+        <span>Логин</span>
+        <input type="text" name="login" required autocomplete="username" />
+      </label>
+      <label class="field">
+        <span>Пароль</span>
+        <input type="password" name="password" required autocomplete="current-password" />
+      </label>
+      <div class="form-error hidden" id="login-error"></div>
+      <button class="btn btn-primary btn-block" type="submit" id="login-btn">Войти</button>
+    </form>
+  </section>
+
+  <!-- Основной интерфейс -->
+  <section class="app hidden" id="app">
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <div class="brand">✂️ Админка</div>
+        <nav class="tabs" id="tabs">
+          <button class="tab active" data-tab="bookings">Записи</button>
+          <button class="tab" data-tab="services">Услуги</button>
+          <button class="tab" data-tab="masters">Мастера</button>
+          <button class="tab" data-tab="hours">Рабочие часы</button>
+        </nav>
+        <div class="user">
+          <span class="muted" id="admin-login-label"></span>
+          <button class="btn btn-secondary btn-sm" id="telegram-test-btn">Тест Telegram</button>
+          <button class="btn btn-secondary btn-sm" id="logout-btn">Выйти</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container main">
+      <!-- ====== ЗАПИСИ ====== -->
+      <section class="panel" id="panel-bookings">
+        <div class="panel-head">
+          <h2>Записи</h2>
+          <button class="btn btn-primary btn-sm" id="new-booking-btn">+ Новая запись</button>
+        </div>
+
+        <div class="filters">
+          <label class="field inline">
+            <span>Дата</span>
+            <input type="date" id="filter-date" />
+          </label>
+          <label class="field inline">
+            <span>Статус</span>
+            <select id="filter-status">
+              <option value="">Все</option>
+              <option value="confirmed">Подтверждённые</option>
+              <option value="cancelled">Отменённые</option>
+            </select>
+          </label>
+          <label class="field inline">
+            <span>Телефон</span>
+            <input type="text" id="filter-phone" placeholder="поиск…" />
+          </label>
+          <button class="btn btn-secondary btn-sm" id="filter-apply">Применить</button>
+          <button class="btn btn-secondary btn-sm" id="filter-reset">Сбросить</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table" id="bookings-table">
+            <thead>
+              <tr>
+                <th>Дата</th>
+                <th>Время</th>
+                <th>Клиент</th>
+                <th>Телефон</th>
+                <th>Услуга</th>
+                <th>Мастер</th>
+                <th>Статус</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="bookings-body">
+              <tr><td colspan="8" class="muted">Загрузка…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ====== УСЛУГИ ====== -->
+      <section class="panel hidden" id="panel-services">
+        <div class="panel-head">
+          <h2>Услуги</h2>
+          <button class="btn btn-primary btn-sm" id="new-service-btn">+ Добавить</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table" id="services-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Название</th>
+                <th>Длительность</th>
+                <th>Цена</th>
+                <th>Активна</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="services-body">
+              <tr><td colspan="6" class="muted">Загрузка…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ====== МАСТЕРА ====== -->
+      <section class="panel hidden" id="panel-masters">
+        <div class="panel-head">
+          <h2>Мастера</h2>
+          <button class="btn btn-primary btn-sm" id="new-master-btn">+ Добавить</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table" id="masters-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Имя</th>
+                <th>Активен</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="masters-body">
+              <tr><td colspan="4" class="muted">Загрузка…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ====== РАБОЧИЕ ЧАСЫ ====== -->
+      <section class="panel hidden" id="panel-hours">
+        <div class="panel-head">
+          <h2>Рабочие часы</h2>
+        </div>
+        <div id="hours-list" class="hours-list">
+          <p class="muted">Загрузка…</p>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <!-- Модалка -->
+  <div class="modal-backdrop hidden" id="modal-backdrop">
+    <div class="modal" id="modal">
+      <div class="modal-head">
+        <h3 id="modal-title">…</h3>
+        <button class="modal-close" id="modal-close" aria-label="Закрыть">×</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-foot" id="modal-foot"></div>
+    </div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="/admin/admin.js"></script>
+</body>
+</html>

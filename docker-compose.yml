@@ -1,0 +1,33 @@
+services:
+  app:
+    build: .
+    image: barbershop-booking:latest
+    container_name: barbershop-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_PATH: /app/data/barbershop.db
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      JWT_SECRET: ${JWT_SECRET:-please_change_me_in_production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      ADMIN_LOGIN: ${ADMIN_LOGIN:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-true}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_ADMIN_CHAT_IDS: ${TELEGRAM_ADMIN_CHAT_IDS:-}
+      TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      TELEGRAM_CLIENT_NOTIFICATIONS: ${TELEGRAM_CLIENT_NOTIFICATIONS:-true}
+      TELEGRAM_RATE_LIMIT_PER_MIN: ${TELEGRAM_RATE_LIMIT_PER_MIN:-20}
+      TELEGRAM_DEDUP_WINDOW_SECONDS: ${TELEGRAM_DEDUP_WINDOW_SECONDS:-30}
+    volumes:
+      - barbershop_data:/app/data
+
+volumes:
+  barbershop_data:
+    driver: local

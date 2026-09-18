@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ваша запись — Барбершоп</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <h1 class="logo">✂️ Барбершоп</h1>
+      <p class="subtitle">Управление записью</p>
+    </div>
+  </header>
+
+  <main class="container main">
+    <section class="screen" id="loading-screen">
+      <p class="muted">Загрузка…</p>
+    </section>
+
+    <section class="screen hidden" id="error-screen">
+      <div class="form-error" id="error-text">…</div>
+      <div class="actions">
+        <a class="btn btn-secondary" href="/">На главную</a>
+      </div>
+    </section>
+
+    <section class="screen hidden" id="booking-screen">
+      <h2>Ваша запись</h2>
+      <div class="confirmation" id="booking-info"></div>
+
+      <div id="cancel-block">
+        <p class="muted">
+          Если планы изменились — вы можете отменить запись. Это освободит
+          время для других клиентов.
+        </p>
+        <div class="actions">
+          <a class="btn btn-secondary" href="/">← На главную</a>
+          <button class="btn btn-danger" id="cancel-btn">Отменить запись</button>
+        </div>
+      </div>
+
+      <div id="cancelled-block" class="hidden">
+        <div class="success">
+          <div class="success-icon">✕</div>
+          <h2>Запись отменена</h2>
+          <p class="muted">Спасибо, что предупредили. Ждём вас в другой раз!</p>
+          <div class="actions">
+            <a class="btn btn-primary" href="/">Записаться снова</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container"><p class="muted">© Барбершоп</p></div>
+  </footer>
+
+  <script src="/booking/booking.js"></script>
+</body>
+</html>
